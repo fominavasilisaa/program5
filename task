@@ -1,0 +1,352 @@
+#include <iostream>
+#include <stdexcept>
+#include <fstream>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+
+using namespace std;
+
+class myArray {
+protected:
+    int* data;
+    int size;
+
+public:
+    myArray(int arraySize) : size(arraySize) {
+        if (size > 0) {
+            data = new int[size];
+            for (int i = 0; i < size; ++i) {
+                data[i] = 0;
+            }
+        }
+        else {
+            data = nullptr;
+        }
+    }
+
+    myArray(const myArray& other) : size(other.size) {
+        if (size > 0) {
+            data = new int[size];
+            for (int i = 0; i < size; ++i) {
+                data[i] = other.data[i];
+            }
+        }
+        else {
+            data = nullptr;
+        }
+    }
+
+    virtual ~myArray() {
+        delete[] data;
+    }
+
+    void print() const {
+        cout << "Массив [размер: " << size << "]: ";
+        for (int i = 0; i < size; ++i) {
+            cout << data[i];
+            if (i < size - 1) {
+                cout << ", ";
+            }
+        }
+        cout << endl;
+    }
+
+    void set(int index, int value) {
+        if (index < 0 || index >= size) {
+            throw out_of_range("Индекс выходит за границы массива");
+        }
+        if (value < -100 || value > 100) {
+            throw invalid_argument("Значение должно быть от -100 до 100");
+        }
+        data[index] = value;
+    }
+
+    int get(int index) const {
+        if (index < 0 || index >= size) {
+            throw out_of_range("Индекс выходит за границы массива");
+        }
+        return data[index];
+    }
+
+    void add(int value) {
+        if (value < -100 || value > 100) {
+            throw invalid_argument("Значение должно быть от -100 до 100");
+        }
+
+        int newSize = size + 1;
+        int* newData = new int[newSize];
+
+        for (int i = 0; i < size; ++i) {
+            newData[i] = data[i];
+        }
+
+        newData[size] = value;
+        delete[] data;
+        data = newData;
+        size = newSize;
+    }
+
+    virtual myArray* sum(const myArray& other) const = 0;
+
+    virtual myArray* sub(const myArray& other) const = 0;
+
+    int getSize() const {
+        return size;
+    }
+
+    myArray& operator=(const myArray& other) {
+        if (this != &other) {
+            delete[] data;
+            size = other.size;
+            if (size > 0) {
+                data = new int[size];
+                for (int i = 0; i < size; ++i) {
+                    data[i] = other.data[i];
+                }
+            }
+            else {
+                data = nullptr;
+            }
+        }
+        return *this;
+    }
+
+    virtual void save() const = 0;
+
+protected:
+    string getTime() const {
+        auto now = chrono::system_clock::now();
+        auto time = chrono::system_clock::to_time_t(now);
+
+        stringstream ss;
+
+        tm tm_local;
+#ifdef _WIN32
+        localtime_s(&tm_local, &time);
+#else
+        localtime_r(&time, &tm_local);
+#endif
+
+        ss << put_time(&tm_local, "%Y-%m-%d_%H-%M-%S");
+        return ss.str();
+    }
+};
+
+class myArrayTxt : public myArray {
+public:
+    myArrayTxt(int arraySize) : myArray(arraySize) {}
+
+    myArrayTxt(const myArray& other) : myArray(other) {}
+
+    myArray* sum(const myArray& other) const override {
+        int max = (size > other.getSize()) ? size : other.getSize();
+        myArrayTxt* result = new myArrayTxt(max);
+
+        for (int i = 0; i < max; ++i) {
+            int a = (i < size) ? data[i] : 0;
+            int b = (i < other.getSize()) ? other.get(i) : 0;
+            int s = a + b;
+
+            if (s < -100) s = -100;
+            if (s > 100) s = 100;
+
+            result->data[i] = s;
+        }
+
+        return result;
+    }
+
+    myArray* sub(const myArray& other) const override {
+        int max = (size > other.getSize()) ? size : other.getSize();
+        myArrayTxt* result = new myArrayTxt(max);
+
+        for (int i = 0; i < max; ++i) {
+            int a = (i < size) ? data[i] : 0;
+            int b = (i < other.getSize()) ? other.get(i) : 0;
+            int d = a - b;
+
+            if (d < -100) d = -100;
+            if (d > 100) d = 100;
+
+            result->data[i] = d;
+        }
+
+        return result;
+    }
+
+    void save() const override {
+        string file = getTime() + ".txt";
+        ofstream out(file);
+
+        if (!out.is_open()) {
+            throw runtime_error("Не удалось создать файл: " + file);
+        }
+
+        out << "Массив [размер: " << size << "]:\n";
+        for (int i = 0; i < size; ++i) {
+            out << "Элемент " << i << ": " << data[i];
+            if (i < size - 1) {
+                out << "\n";
+            }
+        }
+
+        out.close();
+        cout << "Сохранено в: " << file << endl;
+    }
+};
+
+class myArrayCSV : public myArray {
+public:
+    myArrayCSV(int arraySize) : myArray(arraySize) {}
+
+    myArrayCSV(const myArray& other) : myArray(other) {}
+
+    myArray* sum(const myArray& other) const override {
+        int max = (size > other.getSize()) ? size : other.getSize();
+        myArrayCSV* result = new myArrayCSV(max);
+
+        for (int i = 0; i < max; ++i) {
+            int a = (i < size) ? data[i] : 0;
+            int b = (i < other.getSize()) ? other.get(i) : 0;
+            int s = a + b;
+
+            if (s < -100) s = -100;
+            if (s > 100) s = 100;
+
+            result->data[i] = s;
+        }
+
+        return result;
+    }
+
+    myArray* sub(const myArray& other) const override {
+        int max = (size > other.getSize()) ? size : other.getSize();
+        myArrayCSV* result = new myArrayCSV(max);
+
+        for (int i = 0; i < max; ++i) {
+            int a = (i < size) ? data[i] : 0;
+            int b = (i < other.getSize()) ? other.get(i) : 0;
+            int d = a - b;
+
+            if (d < -100) d = -100;
+            if (d > 100) d = 100;
+
+            result->data[i] = d;
+        }
+
+        return result;
+    }
+
+    void save() const override {
+        string file = getTime() + ".csv";
+        ofstream out(file);
+
+        if (!out.is_open()) {
+            throw runtime_error("Не удалось создать файл: " + file);
+        }
+
+        out << "Index,Value\n";
+        for (int i = 0; i < size; ++i) {
+            out << i << "," << data[i];
+            if (i < size - 1) {
+                out << "\n";
+            }
+        }
+
+        out.close();
+        cout << "Сохранено в: " << file << endl;
+    }
+};
+
+void save(const myArray& array) {
+    array.save();
+}
+
+int main() {
+    try {
+        int n1, n2;
+
+        cout << "Размер первого массива: ";
+        cin >> n1;
+
+        if (n1 < 0) {
+            throw invalid_argument("Размер не может быть отрицательным");
+        }
+
+        myArrayTxt arr1(n1);
+
+        cout << "Введите " << n1 << " чисел (-100 до 100):" << endl;
+        for (int i = 0; i < n1; ++i) {
+            int val;
+            cin >> val;
+            arr1.set(i, val);
+        }
+
+        cout << "Размер второго массива: ";
+        cin >> n2;
+
+        if (n2 < 0) {
+            throw invalid_argument("Размер не может быть отрицательным");
+        }
+
+        myArrayCSV arr2(n2);
+
+        cout << "Введите " << n2 << " чисел (-100 до 100):" << endl;
+        for (int i = 0; i < n2; ++i) {
+            int val;
+            cin >> val;
+            arr2.set(i, val);
+        }
+
+        cout << "\nПервый массив: ";
+        arr1.print();
+        cout << "Второй массив: ";
+        arr2.print();
+
+        myArray* sumResult = arr1.sum(arr2);
+        cout << "Сумма: ";
+        sumResult->print();
+
+        myArray* subResult = arr1.sub(arr2);
+        cout << "Разность: ";
+        subResult->print();
+
+        cout << "\nСохраняем массивы..." << endl;
+
+        myArray* arrays[] = { &arr1, &arr2, sumResult, subResult };
+
+        for (int i = 0; i < 4; i++) {
+            arrays[i]->save();
+        }
+
+        cout << "\nСохранение через функцию:" << endl;
+        save(arr1);
+        save(arr2);
+
+        char choice;
+        cout << "\nДобавить элемент в первый массив? (y/n): ";
+        cin >> choice;
+
+        if (choice == 'y' || choice == 'Y') {
+            int val;
+            cout << "Введите число (-100 до 100): ";
+            cin >> val;
+            arr1.add(val);
+            cout << "Массив после добавления: ";
+            arr1.print();
+
+            arr1.save();
+        }
+
+        delete sumResult;
+        delete subResult;
+
+    }
+    catch (const exception& e) {
+        cerr << "Ошибка: " << e.what() << endl;
+        return 1;
+    }
+
+    return 0;
+}
